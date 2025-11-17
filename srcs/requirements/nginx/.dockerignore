@@ -1,0 +1,25 @@
+# Git files
+.git
+.gitignore
+
+# Documentation
+*.md
+README*
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Don't ignore certs - they need to be copied into image
+# !tools/certs/
+

@@ -1,0 +1,22 @@
+# Git files
+.git
+.gitignore
+
+# Documentation
+*.md
+README*
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
