@@ -1,12 +1,15 @@
 #!/bin/bash
 set -e
 
-service mariadb start
-mysql << EOF
+cat > /init.sql <<EOF
 CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};
 CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
 GRANT ALL PRIVILEGES ON *.* TO '${MYSQL_USER}'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 EOF
+echo -e "${ORANGE}${BOLD}SQL Initialization Completed${RESET}"
 
-exec mysqld
+chown mysql:mysql /init.sql
+
+echo -e "${GREEN}${BOLD}Starting MariaDB...${RESET}"
+exec mysqld --user=mysql --init-file=/init.sql

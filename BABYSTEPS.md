@@ -1,6 +1,6 @@
 # Baby Steps: Inception Project
 
-Starting from docker-compose.yml creation, step by step.
+Guide étape par étape pour construire l'infrastructure Docker Inception.
 
 ---
 
@@ -8,55 +8,40 @@ Starting from docker-compose.yml creation, step by step.
 
 **What to do:**
 - Create `srcs/docker-compose.yml`
-- Define the version (use `version: '3.8'` or `version: '3'`)
 - Create a `services:` section (empty for now)
 - Create a `networks:` section with one custom network
 - Create a `volumes:` section (empty for now)
 
 **What you need to understand:**
-- Docker Compose file structure: `version`, `services`, `networks`, `volumes` are top-level keys
-- Network naming: you'll create a network like `inception` that all containers will join
+- Docker Compose file structure: `services`, `networks`, `volumes` are top-level keys
+- Network naming: you'll create a network like `inception-network` that all containers will join
 - Service names become hostnames: if you name a service `mariadb`, other containers can reach it at `mariadb` (not `localhost`)
-
-**Learning resources:**
-- Docker Compose file reference: understand the basic YAML structure
-- Docker networking basics: containers on the same network can communicate by service name
-
----
-
-## Step 2: Define the Custom Network
-
-**What to do:**
-- In `networks:` section, define a network (e.g., `inception`)
-- Set driver to `bridge` (default, but explicit is good)
-- Optionally set a subnet (e.g., `172.20.0.0/16`)
-
-**What you need to understand:**
-- Bridge networks: default Docker network type, containers can communicate by name
-- Why not `host`: `host` network bypasses Docker networking and breaks service name resolution
-- Network isolation: containers on this network can talk to each other, but not to containers on other networks
 
 **Example structure:**
 ```yaml
+services:
+
 networks:
-  inception:
+  inception-network:
     driver: bridge
+
+volumes:
 ```
 
 ---
 
-## Step 3: Define Volumes (Host Paths)
+## Step 2: Define Volumes (Host Paths)
 
 **What to do:**
 - Create two bind mount volumes:
   - One for MariaDB data: `/home/<your-login>/data/mariadb`
   - One for WordPress files: `/home/<your-login>/data/wordpress`
-- Use `type: bind` and `bind: create_host_path: true` (or create directories manually)
+- Use `driver: local` with `driver_opts` for bind mounts
 
 **What you need to understand:**
-- Bind mounts vs named volumes: bind mounts map to specific host paths (required here)
+- Bind mounts map to specific host paths (required here)
 - Volume persistence: data survives container restarts/deletions
-- Permissions: ensure directories are readable/writable by containers (may need `chmod`)
+- Directories will be created automatically or via Makefile
 
 **Example structure:**
 ```yaml
@@ -77,71 +62,157 @@ volumes:
 
 ---
 
-## Step 4: Create .env File Structure
+## Step 3: Create .env File Structure
 
 **What to do:**
 - Create `srcs/.env` file (will be gitignored)
 - Define variables using the exact names that MariaDB and WordPress expect
-- Variables you'll need:
-  - Database name (`MYSQL_DATABASE`)
-  - Database user (`MYSQL_USER`)
-  - Database root password (`MYSQL_ROOT_PASSWORD`)
-  - Database user password (`MYSQL_PASSWORD`)
-  - WordPress admin username (NOT containing "admin")
-  - WordPress admin password
-  - WordPress user password
-  - Domain name (`login.42.fr`)
+
+**Required variables:**
+- `MYSQL_DATABASE` - Database name
+- `MYSQL_USER` - Database user
+- `MYSQL_PASSWORD` - Database user password
+- `MYSQL_ROOT_PASSWORD` - Database root password
+- `WORDPRESS_DB_HOST=mariadb` - Database host (service name)
+- `WORDPRESS_ADMIN_USER` - WordPress admin username (MUST NOT contain "admin", "Admin", "administrator", "Administrator")
+- `WORDPRESS_ADMIN_PASSWORD` - WordPress admin password
+- `WORDPRESS_USER` - WordPress regular user username
+- `WORDPRESS_USER_PASSWORD` - WordPress regular user password
+- `DOMAIN_NAME=fmixtur.42.fr` - Your domain name
 
 **What you need to understand:**
 - `env_file:` loads ALL variables from .env automatically into the container
-- Your .env must use the exact variable names that services expect (e.g., `MYSQL_ROOT_PASSWORD` for MariaDB)
 - Security: never commit `.env` - add to `.gitignore`
-- Simple approach: just list all variables in .env, services will read them automatically
+- Variable names must match what services expect
 
 **Example .env file:**
 ```
 MYSQL_DATABASE=wordpress
-MYSQL_USER=wpuser
+MYSQL_USER=fmixtur
 MYSQL_PASSWORD=secure_password_here
 MYSQL_ROOT_PASSWORD=root_secure_password_here
 WORDPRESS_DB_HOST=mariadb
-WORDPRESS_DB_NAME=wordpress
-WORDPRESS_DB_USER=wpuser
-WORDPRESS_DB_PASSWORD=secure_password_here
-WP_ADMIN_USER=manager
-WP_ADMIN_PASSWORD=admin_secure_password
-WP_USER=editor
-WP_USER_PASSWORD=user_secure_password
-DOMAIN_NAME=login.42.fr
+WORDPRESS_ADMIN_USER=fmixtur_ad
+WORDPRESS_ADMIN_PASSWORD=admin_secure_password
+WORDPRESS_USER=fmixtur
+WORDPRESS_USER_PASSWORD=user_secure_password
+DOMAIN_NAME=fmixtur.42.fr
 ```
 
 ---
 
-## Step 5: Add MariaDB Service Skeleton
+## Step 4: Create Directory Structure
 
 **What to do:**
-- Add `mariadb:` service to `services:` section
-- Set `build:` pointing to `./requirements/mariadb` (where Dockerfile will be)
-- Set `image: mariadb` (image name must match service name - requirement!)
-- Set `container_name:` (e.g., `mariadb`)
-- Set `restart: unless-stopped` or `restart: always`
-- Add `networks:` with your custom network
-- Add `volumes:` mapping the mariadb_data volume to `/var/lib/mysql` inside container
-- Add `env_file:` section pointing to `.env`
+- Create `srcs/requirements/mariadb/` directory with `conf/` and `tools/` subdirectories
+- Create `srcs/requirements/wordpress/` directory with `conf/` and `tools/` subdirectories
+- Create `srcs/requirements/nginx/` directory with `conf/` subdirectory
 
-**What you need to understand:**
-- `build:` vs `image:`: `build` tells Compose to build from Dockerfile, `image` names the built image (required: image name == service name)
-- Environment variables: MariaDB uses specific env vars like `MYSQL_ROOT_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`
-- `env_file:` loads all variables from `.env` automatically - make sure your .env has the exact variable names MariaDB expects
-- Volume mount: `/var/lib/mysql` is where MariaDB stores its data files
-- Network assignment: container joins your custom network so WordPress can reach it
+**Directory structure:**
+```
+srcs/
+├── .env (not committed)
+├── docker-compose.yml
+└── requirements/
+    ├── mariadb/
+    │   ├── Dockerfile
+    │   ├── conf/
+    │   └── tools/
+    ├── wordpress/
+    │   ├── Dockerfile
+    │   ├── conf/
+    │   └── tools/
+    └── nginx/
+        ├── Dockerfile
+        └── conf/
+```
 
-**Example structure:**
+---
+
+## Step 5: Create MariaDB Dockerfile and Init Script
+
+### 5.1: Create Dockerfile
+
+**What to do:**
+- Create `srcs/requirements/mariadb/Dockerfile`
+- Start with `FROM debian:12` (penultimate stable, no `:latest`)
+- Install MariaDB server package
+- Create necessary directories and set ownership
+- Copy configuration files and init script
+- Expose port 3306
+
+**Example Dockerfile:**
+```dockerfile
+FROM debian:12
+
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y mariadb-server
+
+RUN mkdir -p /run/mysqld /var/lib/mysql && \
+    chown -R mysql:mysql /var/lib/mysql /run/mysqld
+
+COPY conf/ /etc/mysql/mariadb.conf.d/
+
+COPY tools/init.sh /init.sh
+RUN chmod +x /init.sh
+
+EXPOSE 3306
+
+ENTRYPOINT ["/init.sh"]
+```
+
+### 5.2: Create Init Script
+
+**What to do:**
+- Create `srcs/requirements/mariadb/tools/init.sh`
+- Create SQL initialization file dynamically using environment variables
+- Use heredoc to create `/init.sql` with database and user creation
+- Set ownership of `/init.sql` to `mysql:mysql`
+- Run `mysqld` with `--user=mysql --init-file=/init.sql`
+- Use `exec mysqld` to make mysqld PID 1 (required for Docker)
+
+**Key points:**
+- `--init-file`: executes SQL file only on first initialization (when `/var/lib/mysql` is empty)
+- `--user=mysql`: required flag, MariaDB won't run as root
+- `exec`: replaces shell process with mysqld, making it PID 1
+- `set -e`: makes script exit on any error
+
+**Example init.sh:**
+```bash
+#!/bin/bash
+set -e
+
+cat > /init.sql <<EOF
+CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};
+CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
+GRANT ALL PRIVILEGES ON *.* TO '${MYSQL_USER}'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+EOF
+
+chown mysql:mysql /init.sql
+
+echo -e "${GREEN}${BOLD}Starting MariaDB...${RESET}"
+exec mysqld --user=mysql --init-file=/init.sql
+```
+
+### 5.3: Add MariaDB Service to docker-compose.yml
+
+**What to do:**
+- Add `mariadb:` service
+- Set `build: ./requirements/mariadb`
+- Set `image: mariadb${PROJECT_NAME}` (image name format)
+- Set `restart: always`
+- Add volume mount for mariadb_data
+- Add `env_file: .env`
+- Add to `inception-network`
+
+**Example:**
 ```yaml
 services:
   mariadb:
     build: ./requirements/mariadb
-    image: mariadb
+    image: mariadb${PROJECT_NAME}
     container_name: mariadb
     restart: always
     networks:
@@ -154,29 +225,140 @@ services:
 
 ---
 
-## Step 6: Add WordPress Service Skeleton
+## Step 6: Create WordPress Dockerfile and Init Script
+
+### 6.1: Create Dockerfile
+
+**What to do:**
+- Create `srcs/requirements/wordpress/Dockerfile`
+- Start with `FROM debian:12`
+- Install PHP-FPM and required PHP extensions (php-mysql, php-cli, etc.)
+- Install WordPress CLI (wp-cli)
+- Copy configuration files and init script
+- Expose port 9000 (PHP-FPM default)
+
+**Example Dockerfile:**
+```dockerfile
+FROM debian:12
+
+RUN apt-get update && \
+    apt-get install -y php-fpm php-mysql php-cli php-common curl && \
+    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
+    chmod +x wp-cli.phar && \
+    mv wp-cli.phar /usr/local/bin/wp
+
+COPY conf/ /conf/
+
+COPY tools/init.sh /init.sh
+RUN chmod +x /init.sh
+
+EXPOSE 9000
+
+ENTRYPOINT ["/init.sh"]
+```
+
+### 6.2: Create Init Script
+
+**What to do:**
+- Create `srcs/requirements/wordpress/tools/init.sh`
+- Download WordPress if not already installed (check for `wp-config.php`)
+- Copy and configure `wp-config.php` with environment variables
+- Install WordPress if not already installed (use `wp core install`)
+- Create admin user (username MUST NOT contain "admin", "Admin", "administrator", "Administrator")
+- Create regular user (non-admin role)
+- Configure PHP-FPM to listen on 0.0.0.0:9000
+- Set proper permissions
+- Use `exec php-fpm8.2 -F` to make PHP-FPM PID 1
+
+**Key points:**
+- Idempotency: script should be safe to run multiple times (check if already done)
+- User creation: use `wp user create` with roles (administrator, editor, etc.)
+- PHP-FPM config: modify `/etc/php/8.2/fpm/pool.d/www.conf` to listen on TCP port 9000
+
+**Example init.sh:**
+```bash
+#!/bin/bash
+set -e
+
+if [ ! -f /var/www/html/wp-config.php ]; then
+    echo -e "${ORANGE}${BOLD}Downloading WordPress...${RESET}"
+    wp core download --path=/var/www/html --allow-root
+fi
+
+cp /conf/wp-config.php /var/www/html/wp-config.php
+
+# Replace placeholders in wp-config.php with environment variables
+sed -i "s|\${MYSQL_DATABASE}|${MYSQL_DATABASE}|g" /var/www/html/wp-config.php
+sed -i "s|\${MYSQL_USER}|${MYSQL_USER}|g" /var/www/html/wp-config.php
+sed -i "s|\${MYSQL_PASSWORD}|${MYSQL_PASSWORD}|g" /var/www/html/wp-config.php
+sed -i "s|\${WORDPRESS_DB_HOST}|${WORDPRESS_DB_HOST}|g" /var/www/html/wp-config.php
+
+# Install WordPress if not already installed
+if ! wp core is-installed --path=/var/www/html --allow-root 2>/dev/null; then
+    echo -e "${ORANGE}${BOLD}Installing WordPress...${RESET}"
+    wp core install \
+        --path=/var/www/html \
+        --url=https://${DOMAIN_NAME} \
+        --title="Inception" \
+        --admin_user=${WORDPRESS_ADMIN_USER} \
+        --admin_password=${WORDPRESS_ADMIN_PASSWORD} \
+        --admin_email=admin@${DOMAIN_NAME} \
+        --skip-email \
+        --allow-root
+fi
+
+# Create additional user if it doesn't exist (required: 1 admin + 1 non-admin)
+if ! wp user get ${WORDPRESS_USER} --path=/var/www/html --allow-root --field=ID 2>/dev/null; then
+    echo -e "${ORANGE}${BOLD}Creating user ${WORDPRESS_USER}...${RESET}"
+    wp user create \
+        ${WORDPRESS_USER} \
+        ${WORDPRESS_USER}@${DOMAIN_NAME} \
+        --user_pass=${WORDPRESS_USER_PASSWORD} \
+        --path=/var/www/html \
+        --role=editor \
+        --allow-root
+fi
+
+chown -R www-data:www-data /var/www/html
+sed -i 's|^listen = .*|listen = 0.0.0.0:9000|' /etc/php/8.2/fpm/pool.d/www.conf
+
+echo -e "${GREEN}${BOLD}Starting PHP-FPM...${RESET}"
+exec php-fpm8.2 -F
+```
+
+### 6.3: Create wp-config.php Template
+
+**What to do:**
+- Create `srcs/requirements/wordpress/conf/wp-config.php` as a template
+- Use placeholders like `${MYSQL_DATABASE}`, `${MYSQL_USER}`, etc.
+- The init script will replace these placeholders with actual environment variables
+
+**Example template:**
+```php
+<?php
+define( 'DB_NAME', '${MYSQL_DATABASE}' );
+define( 'DB_USER', '${MYSQL_USER}' );
+define( 'DB_PASSWORD', '${MYSQL_PASSWORD}' );
+define( 'DB_HOST', '${WORDPRESS_DB_HOST}' );
+// ... rest of WordPress config
+```
+
+### 6.4: Add WordPress Service to docker-compose.yml
 
 **What to do:**
 - Add `wordpress:` service
-- Set `build:` pointing to `./requirements/wordpress`
-- Set `image: wordpress` (image name must match service name - requirement!)
-- Set `container_name:`, `restart:`, `networks:` (same network as mariadb)
-- Add `volumes:` mapping wordpress_data to `/var/www/html` (WordPress root)
-- Add `env_file:` pointing to `.env`
-- Add `depends_on:` with `mariadb` (WordPress needs DB to be ready)
+- Set `build: ./requirements/wordpress`
+- Set `restart: always`
+- Add volume mount for wordpress_data
+- Add `env_file: .env`
+- Add `depends_on: mariadb`
+- Add to `inception-network`
 
-**What you need to understand:**
-- WordPress environment variables: `WORDPRESS_DB_HOST=mariadb` (service name!), `WORDPRESS_DB_NAME`, `WORDPRESS_DB_USER`, `WORDPRESS_DB_PASSWORD`
-- `env_file:` loads all variables from `.env` automatically - make sure your .env has WordPress variables
-- `depends_on:`: ensures mariadb starts before wordpress, but doesn't wait for DB to be ready (you may need healthchecks later)
-- Volume mount: `/var/www/html` is the WordPress document root
-- Service name as hostname: `WORDPRESS_DB_HOST=mariadb` works because both are on the same network
-
-**Example structure:**
+**Example:**
 ```yaml
   wordpress:
     build: ./requirements/wordpress
-    image: wordpress
+    image: wordpress${PROJECT_NAME}
     container_name: wordpress
     restart: always
     networks:
@@ -191,30 +373,126 @@ services:
 
 ---
 
-## Step 7: Add NGINX Service Skeleton
+## Step 7: Create NGINX Dockerfile and Configuration
+
+### 7.1: Create Dockerfile
+
+**What to do:**
+- Create `srcs/requirements/nginx/Dockerfile`
+- Start with `FROM debian:12`
+- Install nginx and openssl
+- Generate self-signed SSL certificate during build (using openssl)
+- Copy nginx configuration
+- Remove default nginx files that might conflict
+- Expose port 443
+- Use `CMD ["nginx", "-g", "daemon off;"]` (no init.sh needed, nginx becomes PID 1 directly)
+
+**Key points:**
+- Certificates are generated during build, not copied from host
+- No init.sh needed for nginx (unlike MariaDB and WordPress)
+- `nginx -g 'daemon off;'` keeps nginx in foreground (required for Docker)
+
+**Example Dockerfile:**
+```dockerfile
+FROM debian:12
+
+# Install NGINX and OpenSSL
+RUN apt-get update &&\
+    apt-get upgrade -y &&\
+    apt-get install -y nginx openssl
+
+# Create SSL directory and generate self-signed certificate
+RUN mkdir -p /etc/nginx/ssl &&\
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout /etc/nginx/ssl/key.pem \
+        -out /etc/nginx/ssl/cert.pem \
+        -subj "/CN=fmixtur.42.fr"
+
+COPY conf/default.conf /etc/nginx/conf.d/default.conf
+
+# Remove default nginx site to avoid conflicts
+RUN rm -f /etc/nginx/sites-enabled/default
+RUN rm -f /var/www/html/index.nginx-debian.html
+
+EXPOSE 443
+
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+### 7.2: Create NGINX Configuration
+
+**What to do:**
+- Create `srcs/requirements/nginx/conf/default.conf`
+- Configure server block listening on port 443 with SSL
+- Set `server_name` to your domain (e.g., `fmixtur.42.fr`)
+- Configure SSL: certificate and key paths, TLS versions (1.2 and 1.3 only)
+- Set up FastCGI proxy to WordPress container on port 9000
+- Configure root directory (volume mount from WordPress)
+- Set `index index.php` first to prioritize WordPress
+
+**Key points:**
+- `ssl_protocols TLSv1.2 TLSv1.3;` - only TLSv1.2 and TLSv1.3 (no older versions)
+- `fastcgi_pass wordpress:9000;` - forwards PHP requests to WordPress container
+- Root should point to `/var/www/html` (shared volume)
+
+**Example default.conf:**
+```nginx
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name fmixtur.42.fr;
+
+    # SSL Configuration - TLSv1.2 and TLSv1.3 only
+    ssl_certificate /etc/nginx/ssl/cert.pem;
+    ssl_certificate_key /etc/nginx/ssl/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    root /var/www/html;
+    index index.php index.html index.htm;
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    # PHP-FPM Configuration
+    location ~ \.php$ {
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass wordpress:9000;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+    }
+
+    # Deny access to hidden files
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+}
+```
+
+### 7.3: Add NGINX Service to docker-compose.yml
 
 **What to do:**
 - Add `nginx:` service
-- Set `build:` pointing to `./requirements/nginx`
-- Set `image: nginx` (image name must match service name - requirement!)
-- Set `container_name:`, `restart:`, `networks:`
-- Add `ports:` mapping `443:443` (host:container) - this exposes port 443 on host
-- Add `volumes:` to mount WordPress files (NGINX needs to serve them)
-- Add `depends_on:` with `wordpress` (NGINX needs WordPress to be running)
-- **Note:** NGINX config files and SSL certificates are copied into the image during build (in Dockerfile), NOT mounted as volumes
+- Set `build: ./requirements/nginx`
+- Set `restart: always`
+- Add `ports: "443:443"` (expose port 443 on host)
+- Add volume mount for wordpress_data (NGINX needs to serve WordPress files)
+- Add `depends_on: wordpress`
+- Add to `inception-network`
 
-**What you need to understand:**
-- Port mapping: `443:443` means host port 443 maps to container port 443
-- NGINX as reverse proxy: NGINX receives requests and forwards them to PHP-FPM in WordPress container
-- WordPress files volume: NGINX needs access to WordPress files to serve them (shared volume)
-- Config files and SSL certs: These are copied into the image during Docker build, not mounted at runtime
-- This approach is simpler and matches the project structure (configs in `conf/`, certs in `tools/`)
-
-**Example structure:**
+**Example:**
 ```yaml
   nginx:
     build: ./requirements/nginx
-    image: nginx
+    image: nginx${PROJECT_NAME}
     container_name: nginx
     restart: always
     networks:
@@ -225,345 +503,159 @@ services:
       - wordpress_data:/var/www/html
     depends_on:
       - wordpress
+    env_file:
+      - .env
 ```
 
 ---
 
-## Step 8: Create Directory Structure
-
-**What to do:**
-- Create `srcs/requirements/mariadb/` directory
-- Create `srcs/requirements/wordpress/` directory
-- Create `srcs/requirements/nginx/` directory
-- In each, create subdirectories: `conf/` and `tools/`
-- Create `srcs/requirements/tools/` for shared scripts
-
-**What you need to understand:**
-- Build context: when Docker builds, the `context:` path becomes the build context (all files in that directory are available)
-- Directory organization: separate configs, tools, and Dockerfiles for each service
-- `.dockerignore`: you'll create these to exclude unnecessary files from build context
-
----
-
-## Step 9: Create MariaDB Dockerfile
-
-**What to do:**
-- Create `srcs/requirements/mariadb/Dockerfile`
-- Start with `FROM debian:12` or `FROM alpine:3.18` (penultimate stable)
-- Install MariaDB server package
-- Create necessary directories
-- Copy any config files or init scripts
-- Expose port 3306 (MariaDB default)
-- Set up entrypoint/CMD to run `mysqld` properly
-
-**What you need to understand:**
-- Base image choice: Debian vs Alpine (Debian is easier for beginners, Alpine is smaller)
-- Package installation: use `apt-get` (Debian) or `apk` (Alpine)
-- Entrypoint vs CMD: entrypoint runs the main process, CMD provides default args
-- PID 1 requirement: `mysqld` should be PID 1, not a shell script with `tail -f`
-- MariaDB initialization: first run creates system databases if `/var/lib/mysql` is empty
-
-**Learning resources:**
-- MariaDB official Dockerfile examples (for reference, not to copy)
-- Dockerfile best practices: minimize layers, use specific versions
-
----
-
-## Step 10: Create WordPress Dockerfile
-
-**What to do:**
-- Create `srcs/requirements/wordpress/Dockerfile`
-- Start with base image (Debian or Alpine)
-- Install PHP-FPM and required PHP extensions (mysql, mysqli, etc.)
-- Install WordPress CLI (wp-cli) - helpful for automation
-- Download WordPress core files
-- Copy custom scripts for WordPress setup
-- Set up PHP-FPM configuration
-- Expose port 9000 (PHP-FPM default port for FastCGI)
-- Set CMD to run `php-fpm` in foreground
-
-**What you need to understand:**
-- PHP-FPM: FastCGI Process Manager, handles PHP execution separately from web server
-- PHP extensions: WordPress needs `mysqli` or `pdo_mysql` to connect to MariaDB
-- WordPress installation: can be done via wp-cli or manual file copy + database setup
-- User creation: you'll need scripts to create the admin user (without "admin" in name) and regular user
-- PHP-FPM pool config: configure it to listen on a socket or TCP port (9000)
-
-**Learning resources:**
-- PHP-FPM configuration: understand pool configuration files
-- wp-cli documentation: commands for installing WordPress, creating users
-
----
-
-## Step 11: Create NGINX Dockerfile
-
-**What to do:**
-- Create `srcs/requirements/nginx/Dockerfile`
-- Start with base image (Debian or Alpine)
-- Install NGINX
-- Copy custom NGINX configuration files from `conf/` directory
-- Copy SSL certificates from `tools/certs/` directory
-- Expose port 443
-- Set CMD to run `nginx` in foreground mode (`nginx -g 'daemon off;'`)
-
-**What you need to understand:**
-- NGINX foreground mode: `daemon off;` keeps NGINX in foreground (required for Docker)
-- Configuration files: Copy from `conf/` to `/etc/nginx/conf.d/` in the image
-- SSL certificates: Copy from `tools/certs/` to `/etc/nginx/ssl/` in the image (NOT mounted as volumes)
-- This approach bakes configs and certs into the image during build
-
-**Example Dockerfile structure:**
-```dockerfile
-FROM debian:12
-
-RUN apt-get update && apt-get install -y nginx
-
-# Copy NGINX configuration
-COPY conf/ /etc/nginx/conf.d/
-
-# Copy SSL certificates
-COPY tools/certs/ /etc/nginx/ssl/
-
-EXPOSE 443
-
-CMD ["nginx", "-g", "daemon off;"]
-```
-
-**Learning resources:**
-- NGINX configuration: server blocks, SSL directives, FastCGI proxy settings
-
----
-
-## Step 12: Create NGINX Configuration
-
-**What to do:**
-- Create `srcs/requirements/nginx/conf/default.conf` or similar
-- Configure server block listening on port 443
-- Set `server_name` to your domain (`login.42.fr`)
-- Configure SSL: certificate and key paths, TLS versions (1.2 and 1.3 only)
-- Set up FastCGI proxy to WordPress container on port 9000
-- Configure root directory (will be a volume mount from WordPress)
-
-**What you need to understand:**
-- Server blocks: each `server {}` block defines a virtual host
-- SSL configuration: `ssl_certificate` and `ssl_certificate_key` point to your cert files
-- TLS protocols: `ssl_protocols TLSv1.2 TLSv1.3;` (no TLSv1.0, TLSv1.1, or plain HTTP)
-- FastCGI proxy: `fastcgi_pass wordpress:9000;` forwards PHP requests to WordPress container
-- `fastcgi_param`: passes necessary variables (SCRIPT_FILENAME, etc.) to PHP-FPM
-
-**Learning resources:**
-- NGINX FastCGI proxying documentation
-- NGINX SSL/TLS configuration
-
----
-
-## Step 13: Generate SSL Certificates
-
-**What to do:**
-- Create script or manual command to generate self-signed certificate
-- Use `openssl` to create:
-  - Private key
-  - Certificate signing request (CSR)
-  - Self-signed certificate
-- Set Common Name (CN) to `login.42.fr`
-- Save key and cert in `srcs/requirements/nginx/tools/certs/` or similar
-- Ensure files are readable by NGINX container
-
-**What you need to understand:**
-- Self-signed vs CA-signed: self-signed certs work but browsers show warnings (acceptable for this project)
-- Certificate validity: set appropriate expiration (e.g., 365 days)
-- Key security: private key must be kept secure, never committed to git
-- Certificate details: CN must match the domain you're using
-
-**Learning resources:**
-- OpenSSL command-line tool: `openssl req`, `openssl x509`
-- Certificate generation tutorials
-
----
-
-## Step 14: Configure /etc/hosts
+## Step 8: Configure /etc/hosts
 
 **What to do:**
 - Edit `/etc/hosts` on your VM host
-- Add entry: `<your-vm-ip> login.42.fr`
-- Find your VM's IP: `hostname -I` or `ip addr show`
+- Add entry: `127.0.1.1 fmixtur.42.fr` (or your VM IP if preferred)
+- This allows your domain to resolve locally
 
 **What you need to understand:**
 - `/etc/hosts`: local DNS override, maps domain names to IP addresses
-- Why needed: your domain needs to resolve to your VM's IP for TLS to work
-- Testing: `ping login.42.fr` should resolve to your VM IP
+- Why needed: your domain needs to resolve for TLS to work properly
+- Testing: `ping fmixtur.42.fr` should resolve to 127.0.1.1
 
----
-
-## Step 15: Create WordPress Setup Scripts
-
-**What to do:**
-- Create script in `srcs/requirements/wordpress/tools/` to:
-  - Wait for MariaDB to be ready (check connection)
-  - Install WordPress if not already installed (check for `wp-config.php`)
-  - Create admin user (username without "admin" in it)
-  - Create regular user
-  - Set proper permissions
-
-**What you need to understand:**
-- WordPress installation: can use wp-cli (`wp core install`) or manual database setup
-- User creation: `wp user create` command with roles (administrator, subscriber, etc.)
-- Database readiness: script should retry connecting to MariaDB until it's ready
-- Idempotency: script should be safe to run multiple times (check if already done)
-
-**Learning resources:**
-- wp-cli commands: `wp core install`, `wp user create`, `wp option update`
-
----
-
-## Step 16: Create MariaDB Init Scripts (if needed)
-
-**What to do:**
-- If MariaDB's default initialization isn't enough, create custom init scripts
-- Scripts in `/docker-entrypoint-initdb.d/` run on first initialization
-- May need to create additional databases or users
-
-**What you need to understand:**
-- MariaDB initialization: scripts in `/docker-entrypoint-initdb.d/` execute only on first run (when data directory is empty)
-- SQL scripts: can be `.sql` files or executable scripts
-- Order matters: scripts execute in alphabetical order
-
----
-
-## Step 17: Test Basic docker-compose.yml
-
-**What to do:**
-- Run `docker-compose config` to validate YAML syntax
-- Run `docker-compose build` to build all images
-- Check for build errors, fix them
-- Don't start containers yet if Dockerfiles aren't complete
-
-**What you need to understand:**
-- `docker-compose config`: validates and shows final configuration (with env vars resolved)
-- `docker-compose build`: builds all images defined in compose file
-- Build context: ensure all referenced files exist in build contexts
-
----
-
-## Step 18: Create .gitignore
-
-**What to do:**
-- Create `.gitignore` at repo root
-- Add: `.env`, `secrets/`, `srcs/.env`, `*.pem`, `*.key`, `*.crt`
-- Add data directories: `/home/<login>/data/` (or use pattern)
-
-**What you need to understand:**
-- Security: never commit secrets, passwords, certificates, or private keys
-- `.gitignore` patterns: use wildcards and directory patterns
-
----
-
-## Step 19: Create Makefile Targets
-
-**What to do:**
-- Create `Makefile` at repo root
-- Add targets:
-  - `build`: build all Docker images
-  - `up` or `start`: start all services
-  - `down` or `stop`: stop all services
-  - `clean`: remove containers, volumes (careful!)
-  - `re`: rebuild and restart
-  - `logs`: show logs from all services
-
-**What you need to understand:**
-- Makefile syntax: targets, dependencies, commands
-- Docker Compose commands: `docker-compose up -d`, `docker-compose down`, etc.
-- Working directory: Makefile should `cd srcs` before running docker-compose commands
-
-**Example structure:**
-```makefile
-all: build up
-
-build:
-	cd srcs && docker-compose build
-
-up:
-	cd srcs && docker-compose up -d
-
-down:
-	cd srcs && docker-compose down
-
-clean: down
-	cd srcs && docker-compose down -v
-	rm -rf /home/<login>/data/*
-
-re: clean build up
-
-logs:
-	cd srcs && docker-compose logs -f
+**Command:**
+```bash
+sudo bash -c 'echo "127.0.1.1 fmixtur.42.fr" >> /etc/hosts'
 ```
 
 ---
 
-## Step 20: Test End-to-End
+## Step 9: Create Makefile
 
 **What to do:**
-- Run `make build` or `make up`
-- Check containers are running: `docker ps`
-- Check logs: `docker-compose logs` or `make logs`
-- Test HTTPS connection: `curl -k https://login.42.fr` (use `-k` to ignore self-signed cert warning)
-- Access WordPress in browser: `https://login.42.fr` (accept security warning)
+- Create `Makefile` at repo root
+- Add targets for common operations:
+  - `build`: build all Docker images
+  - `up`: start all services
+  - `down`: stop and remove containers
+  - `clean`: remove containers and volumes
+  - `fclean`: full clean (containers, volumes, images, and data)
+  - `re`: rebuild everything from scratch
+  - `logs`: show logs from all services
+  - `setup-hosts`: add domain to /etc/hosts
+  - `setup-dirs`: create data directories
 
-**What you need to understand:**
-- Container status: `docker ps` shows running containers, `docker ps -a` shows all
-- Logs debugging: check each service's logs for errors
-- Network connectivity: containers should be able to reach each other by service name
-- TLS verification: self-signed certs cause browser warnings (expected)
+**Key points:**
+- Makefile should `cd srcs` before running docker compose commands
+- `fclean` should remove data directories: `rm -rf /home/<login>/data/*`
+- Use `sudo` for operations that require root (hosts, data cleanup)
+
+**Example Makefile:**
+```makefile
+.PHONY: all build up down clean fclean re logs ps stop restart setup-hosts setup-dirs
+
+all: build up
+
+# Setup /etc/hosts entry
+setup-hosts:
+	@if ! grep -q "fmixtur.42.fr" /etc/hosts 2>/dev/null; then \
+		echo "Adding fmixtur.42.fr to /etc/hosts (127.0.1.1)"; \
+		sudo bash -c "echo \"127.0.1.1 fmixtur.42.fr\" >> /etc/hosts"; \
+		echo "Entry added to /etc/hosts"; \
+	else \
+		echo "Entry for fmixtur.42.fr already exists in /etc/hosts"; \
+	fi
+
+# Create data directories if they don't exist
+setup-dirs:
+	@mkdir -p /home/fmixtur/data/mariadb /home/fmixtur/data/wordpress
+	@echo "Data directories created"
+
+build:
+	cd srcs && docker compose build
+
+up: setup-hosts setup-dirs
+	cd srcs && docker compose up -d
+
+down:
+	cd srcs && docker compose down
+
+clean: down
+	cd srcs && docker compose down -v
+	@echo "Containers and volumes removed"
+
+fclean: clean
+	cd srcs && docker compose down --rmi all
+	sudo rm -rf /home/fmixtur/data/mariadb/* /home/fmixtur/data/wordpress/*
+	@echo "Everything cleaned (containers, volumes, images, and data)"
+
+re: fclean build up
+
+logs:
+	cd srcs && docker compose logs -f
+```
 
 ---
 
-## Step 21: Verify Requirements
+## Step 10: Create .gitignore
 
 **What to do:**
-- Check all requirements from subject:
-  - ✅ All services in separate containers
-  - ✅ Custom Dockerfiles (no pre-built images)
-  - ✅ Restart policies set
-  - ✅ Custom network used
-  - ✅ Volumes mapped to `/home/<login>/data/`
-  - ✅ Port 443 only (no 80)
-  - ✅ TLS 1.2/1.3 only
-  - ✅ WordPress users created (admin without "admin" in name)
-  - ✅ No secrets in committed files
+- Create `.gitignore` at repo root
+- Add: `.env`, `*.pem`, `*.key`, `*.crt`, `srcs/.env`
+- Add data directories pattern if needed
 
-**What you need to understand:**
-- Evaluation criteria: 42 projects are evaluated against specific requirements
-- Testing checklist: verify each requirement systematically
+**Important:**
+- Never commit secrets, passwords, or certificates
+- `.env` files must be ignored
+
+**Example .gitignore:**
+```
+# Environment files
+.env
+srcs/.env
+*.env
+
+# SSL Certificates
+*.pem
+*.key
+*.crt
+
+# Data directories (optional, but good practice)
+/home/*/data/
+```
 
 ---
 
-## Step 22: Handle Edge Cases
+## Step 11: Test and Verify
+
+### 11.1: Build and Start
 
 **What to do:**
-- Test container crashes: `docker kill <container>` - should restart automatically
-- Test data persistence: stop containers, restart, data should persist
-- Test network isolation: containers should only communicate via custom network
-- Test dependency order: stop MariaDB, WordPress should handle it gracefully
+- Run `make build` to build all images
+- Run `make up` to start all services
+- Check containers are running: `docker compose ps`
 
-**What you need to understand:**
-- Restart policies: `unless-stopped` vs `always` vs `on-failure`
-- Health checks: may need to add healthchecks for proper `depends_on` behavior
-- Graceful degradation: services should handle dependencies not being ready
+### 11.2: Verify Requirements
 
----
+**Checklist:**
+- ✅ All services in separate containers
+- ✅ Custom Dockerfiles (no pre-built images)
+- ✅ Restart policies set (`restart: always`)
+- ✅ Custom network used (not `host`)
+- ✅ Volumes mapped to `/home/<login>/data/`
+- ✅ Port 443 only (no 80)
+- ✅ TLS 1.2/1.3 only
+- ✅ WordPress users created (admin without "admin" in name + 1 non-admin)
+- ✅ No secrets in committed files
+- ✅ Base images pinned (no `:latest`)
+- ✅ No hacky loops (exec used properly)
 
-## Key Concepts to Master
+### 11.3: Test Functionality
 
-1. **Docker Compose YAML structure**: services, networks, volumes, environment variables
-2. **Docker networking**: how containers communicate by service name on custom networks
-3. **Volume mounts**: bind mounts vs named volumes, persistence, permissions
-4. **Environment variables**: `.env` files, variable substitution in Compose files
-5. **Dockerfile basics**: FROM, RUN, COPY, EXPOSE, CMD, ENTRYPOINT
-6. **NGINX configuration**: server blocks, SSL/TLS, FastCGI proxying
-7. **PHP-FPM**: how it works, configuration, communication with web server
-8. **MariaDB setup**: initialization, user creation, database setup
-9. **WordPress installation**: wp-cli, database connection, user management
-10. **SSL certificates**: generation, configuration, self-signed vs CA-signed
+**What to test:**
+- Access WordPress: `https://fmixtur.42.fr` (accept SSL warning)
+- Login with admin user
+- Create a post
+- Test data persistence: `make clean` then `make up` - data should persist
+- Test full cleanup: `make fclean` then `make up` - data should be fresh
 
 ---
 
@@ -579,16 +671,26 @@ logs:
 - ❌ Admin username containing "admin"
 - ❌ Not setting restart policies
 - ❌ Using pre-built service images from Docker Hub
+- ❌ Forgetting `exec` in init scripts (makes service PID 1)
 
 ---
 
-## Next Steps After Basics
+## Key Concepts Summary
 
-Once you have the basic structure working:
-1. Add healthchecks for better dependency management
-2. Optimize Dockerfile layers (reduce image size)
-3. Add proper error handling in scripts
-4. Test with different base images (Alpine vs Debian)
-5. Document your setup process
-6. Prepare for evaluation (know your setup inside and out)
+1. **Docker Compose**: orchestrates multiple services
+2. **Dockerfiles**: each service has its own, builds from base image
+3. **Init scripts**: handle initialization (MariaDB, WordPress) or run service directly (nginx)
+4. **Networking**: custom bridge network allows service name resolution
+5. **Volumes**: bind mounts persist data on host at `/home/<login>/data/`
+6. **Environment variables**: `.env` file provides secrets and configuration
+7. **SSL/TLS**: self-signed certificates generated during build
+8. **PID 1**: main process must be PID 1 (use `exec` or direct `CMD`)
 
+---
+
+## Final Notes
+
+- **Makefile**: essential for automation and setup (hosts, directories)
+- **Testing**: verify all requirements systematically
+- **Documentation**: understand your setup inside and out for evaluation
+- **Security**: never commit secrets, always use `.env` and `.gitignore`

@@ -1,9 +1,8 @@
-version: '3.8'
 
 services:
   mariadb:
     build: ./requirements/mariadb
-    image: mariadb
+    image: mariadb${PROJECT_NAME}
     container_name: mariadb
     restart: always
     networks:
@@ -15,7 +14,7 @@ services:
 
   wordpress:
     build: ./requirements/wordpress
-    image: wordpress
+    image: wordpress${PROJECT_NAME}
     container_name: wordpress
     restart: always
     networks:
@@ -29,7 +28,7 @@ services:
 
   nginx:
     build: ./requirements/nginx
-    image: nginx
+    image: nginx${PROJECT_NAME}
     container_name: nginx
     restart: always
     networks:
@@ -40,6 +39,8 @@ services:
       - wordpress_data:/var/www/html
     depends_on:
       - wordpress
+    env_file:
+      - .env
 
 volumes:
   mariadb_data:

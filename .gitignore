@@ -1,0 +1,38 @@
+# Environment files and secrets
+#.env
+srcs/.env
+*.env
+*.env.local
+*.env.*.local
+
+# SSL Certificates and keys
+*.pem
+*.key
+*.crt
+*.csr
+srcs/requirements/nginx/tools/certs/
+
+# Data directories
+/home/*/data/
+data/
+
+# Docker volumes data
+srcs/data/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+BABYSTEPS.md
+Context.md
+
