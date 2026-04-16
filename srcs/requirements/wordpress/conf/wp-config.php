@@ -71,7 +71,13 @@ define( 'WP_DEBUG', false );
 
 /* Add any custom values between this line and the "stop editing" line. */
 
-
+// Dynamic URL configuration to support port changes
+if ( isset( $_SERVER['HTTP_HOST'] ) ) {
+	$http_host = $_SERVER['HTTP_HOST'];
+	$protocol = ( ! empty( $_SERVER['HTTPS'] ) && $_SERVER['HTTPS'] !== 'off' ) ? 'https://' : 'http://';
+	define( 'WP_HOME', $protocol . $http_host );
+	define( 'WP_SITEURL', $protocol . $http_host );
+}
 
 /* That's all, stop editing! Happy publishing. */
 
