@@ -5,6 +5,8 @@ services:
     image: mariadb${PROJECT_NAME}
     container_name: mariadb
     restart: always
+    ports:
+      - "${MARIADB_PORT}:3306"
     networks:
       - inception-network
     volumes:
@@ -34,7 +36,7 @@ services:
     networks:
       - inception-network
     ports:
-      - "443:443"
+      - "${NGINX_PORT}:443"
     volumes:
       - wordpress_data:/var/www/html
     depends_on:
