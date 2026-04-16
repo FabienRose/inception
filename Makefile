@@ -43,7 +43,8 @@ clean: down
 fclean: clean
 	cd srcs && docker compose down --rmi all
 	sudo rm -rf /home/fmixtur/data/mariadb/* /home/fmixtur/data/wordpress/*
-	@echo "Everything cleaned (containers, volumes, images, and data)"
+	docker system prune -af
+	@echo "Everything cleaned (containers, volumes, images, data and cache)"
 
 # Rebuild everything from scratch
 re: fclean build up
@@ -78,6 +79,26 @@ restart-wordpress:
 
 restart-nginx:
 	cd srcs && docker compose restart nginx
+
+# Stop a specific service (container remains)
+stop-mariadb:
+	cd srcs && docker compose stop mariadb
+
+stop-wordpress:
+	cd srcs && docker compose stop wordpress
+
+stop-nginx:
+	cd srcs && docker compose nginx stop
+
+# Start a specific service (if already created)
+start-mariadb:
+	cd srcs && docker compose start mariadb
+
+start-wordpress:
+	cd srcs && docker compose start wordpress
+
+start-nginx:
+	cd srcs && docker compose start nginx
 
 # Execute commands in containers
 exec-mariadb:
