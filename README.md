@@ -1,197 +1,270 @@
 *This project has been created as part of the 42 curriculum by fmixtur.*
 
+# Inception - Docker WordPress Infrastructure
+
+A System Administration project that demonstrates Docker containerization by setting up a complete WordPress hosting environment with NGINX, WordPress, and MariaDB.
+
 ## Description
 
-Inception is a System Administration project that aims to broaden knowledge of Docker by virtualizing a complete web infrastructure. The project involves creating and configuring multiple Docker containers that work together to form a functional WordPress hosting environment.
+Inception is a Docker-based infrastructure project that creates a functional web hosting environment for WordPress. The entire infrastructure runs in isolated, interconnected Docker containers that communicate through a private Docker network and persist data using Docker named volumes.
 
-The infrastructure consists of:
-- **NGINX** - Web server with TLS encryption
-- **WordPress + php-fpm** - Content management system
-- **MariaDB** - Database server
+The project teaches system administration concepts by requiring students to:
+- Write custom Dockerfiles for each service (no pre-built images)
+- Configure NGINX with TLS encryption (TLSv1.2 or TLSv1.3)
+- Set up a WordPress installation with PHP-FPM
+- Configure MariaDB as the persistent database
+- Manage container orchestration with Docker Compose
+- Use environment variables and secrets for secure configuration
+- Implement proper container restart policies
 
-All services run in dedicated containers, communicate through a Docker network, and store persistent data using Docker named volumes.
+### Architecture
 
-## Instructions
+The infrastructure consists of three mandatory services:
 
-### Prerequisites
+- **NGINX** - Reverse proxy and web server with TLS (HTTPS) support only
+- **WordPress + php-fpm** - Content management system (without embedded NGINX)
+- **MariaDB** - Relational database server (without embedded NGINX)
 
-- Linux Virtual Machine (as required by the project)
+All containers are orchestrated using Docker Compose, run in a custom bridge network, and store persistent data using Docker named volumes (not bind mounts) in `/home/login/data/` on the host machine.
+
+## Requirements
+
 - Docker and Docker Compose installed
-- `make` command available
-- Appropriate permissions to create directories in `/home/login/data/`
+- Linux with `make` command available
+- Sudo access (for `/etc/hosts` modification and data directory creation)
+- Free ports 443 (HTTPS) and 3306 (database)
 
-### Setup and Execution
+## Quick Start
 
-1. **Clone or navigate to the project directory:**
-   ```bash
-   cd /path/to/inception
-   ```
+### 1. Configure Environment Variables
 
-2. **Configure your domain name** (add to `/etc/hosts`):
-   ```bash
-   sudo nano /etc/hosts
-   # Add: 127.0.0.1 fmixtur.42.fr
-   ```
+Create or move a `.env` file in the `srcs/` directory:
 
-3. **Configure environment variables:**
-   ```bash
-   # Create srcs/.env file with your configuration
-   nano srcs/.env
-   # Required variables: DOMAIN_NAME, MYSQL_ROOT_PASSWORD, MYSQL_PASSWORD, MYSQL_USER, WP_ADMIN_PASSWORD, etc.
-   ```
+```bash
+nano srcs/.env
+```
 
-5. **Build and start the infrastructure:**
-   ```bash
-   make
-   ```
+Required variables:
+```env
+DOMAIN_NAME=yourdomain.local
+MYSQL_ROOT_PASSWORD=root_password
+MYSQL_USER=wp_user
+MYSQL_PASSWORD=wp_password
+WP_ADMIN_USER=admin
+WP_ADMIN_PASSWORD=admin_password
+WP_ADMIN_EMAIL=admin@example.com
+```
 
-6. **Access the WordPress website:**
-   - Open your browser and navigate to `https://fmixtur.42.fr`
-   - Accept the self-signed certificate warning
+### 2. Build and Start the Infrastructure
 
-7. **Stop the infrastructure:**
-   ```bash
-   make down
-   ```
+```bash
+make
+```
 
-8. **Clean up (remove containers and volumes):**
-   ```bash
-   make clean
-   ```
+This will:
+- Add your domain to `/etc/hosts`
+- Create necessary data directories
+- Build Docker images
+- Start all containers
 
-### Makefile Commands
+### 3. Access WordPress
 
-The Makefile provides convenient commands for managing the infrastructure:
+Open your browser and navigate to `https://yourdomain.local` (replacing with your configured domain).
+
+**Note:** You'll see a certificate warning because the project uses a self-signed SSL certificate. This is expected and safe to proceed.
+
+## Available Commands
 
 | Command | Description |
 |---------|-------------|
-| `make` or `make all` | Build and start all services (default target) |
-| `make build` | Build all Docker images from Dockerfiles |
-| `make up` | Start all services with automatic host setup and directory creation |
-| `make down` | Stop and remove containers (volumes and images remain) |
-| `make stop` | Stop all running services without removing containers |
-| `make clean` | Remove containers and volumes (WARNING: deletes all database and WordPress data) |
-| `make fclean` | Full cleanup: removes containers, volumes, images, and data directories |
-| `make re` | Complete rebuild from scratch (equivalent to `make fclean build up`) |
-| `make logs` | View real-time logs from all services |
-| `make logs-mariadb` | View MariaDB logs |
-| `make logs-wordpress` | View WordPress logs |
-| `make logs-nginx` | View NGINX logs |
-| `make ps` | Show status of all running containers |
+| `make` or `make all` | Build and start all services |
+| `make build` | Build all Docker images |
+| `make up` | Start all containers |
+| `make down` | Stop and remove containers |
+| `make stop` | Stop containers without removing them |
 | `make restart` | Restart all services |
-| `make restart-mariadb` | Restart MariaDB container |
-| `make restart-wordpress` | Restart WordPress container |
-| `make restart-nginx` | Restart NGINX container |
-| `make exec-mariadb` | Open bash shell in MariaDB container |
-| `make exec-wordpress` | Open bash shell in WordPress container |
-| `make exec-nginx` | Open bash shell in NGINX container |
-| `make clean-data` | Delete all data (containers remain running) |
-| `make clean-mariadb-data` | Delete MariaDB data only |
-| `make clean-wordpress-data` | Delete WordPress data only |
-| `make setup-hosts` | Add domain name to `/etc/hosts` |
-| `make setup-dirs` | Create data directories in `/home/fmixtur/data/` |
-| `make help` | Display help message with all available commands |
+| `make clean` | Remove containers and volumes (deletes data) |
+| `make fclean` | Full cleanup: containers, volumes, images, and local data |
+| `make re` | Complete rebuild from scratch |
+| `make logs` | View real-time logs from all services |
+| `make logs-nginx` | View NGINX logs |
+| `make logs-wordpress` | View WordPress logs |
+| `make logs-mariadb` | View MariaDB logs |
+| `make ps` | Show container status |
 
-## Directory Structure
+## Project Structure
 
 ```
 inception/
-├── Makefile                          # Main orchestration file
+├── Makefile                          # Infrastructure automation
 ├── README.md                         # This file
-├── USER_DOC.md                       # User documentation
-├── DEV_DOC.md                        # Developer documentation
 └── srcs/
-    ├── .env                          # Environment variables (Git ignored)
     ├── docker-compose.yml            # Docker Compose configuration
+    ├── .env                          # Environment variables (Git ignored)
     └── requirements/
-        ├── nginx/                    # NGINX service
+        ├── nginx/
         │   ├── Dockerfile
-        │   ├── .dockerignore
-        │   ├── conf/
-        │   │   └── default.conf
-        │   └── tools/
-        ├── wordpress/                # WordPress service
+        │   └── conf/
+        │       └── default.conf      # NGINX configuration
+        ├── wordpress/
         │   ├── Dockerfile
-        │   ├── .dockerignore
         │   ├── conf/
-        │   │   └── wp-config.php
+        │   │   └── wp-config.php     # WordPress configuration
         │   └── tools/
-        │       └── init.sh
-        ├── mariadb/                  # MariaDB service
-        │   ├── Dockerfile
-        │   ├── .dockerignore
-        │   ├── conf/
-        │   │   └── server.cnf
-        │   └── tools/
-        │       └── init.sh
-        ├── tools/                    # Shared tools
-        └── bonus/                    # Optional bonus services
+        │       └── init.sh           # WordPress initialization script
+        └── mariadb/
+            ├── Dockerfile
+            ├── conf/
+            │   └── server.cnf        # MariaDB configuration
+            └── tools/
+                └── init.sh           # Database initialization script
 ```
 
-## Resources
+## Troubleshooting
 
-### Docker Documentation
+### Port Already in Use
+If you get a "port already in use" error, check if port 443 or 3306 are already in use:
+```bash
+lsof -i :443
+lsof -i :3306
+```
+
+### Certificate Issues
+The project uses self-signed SSL certificates. This warning is normal and safe:
+- In Chrome/Chromium: Click "Advanced" → "Proceed to [domain]"
+- In Firefox: Click "Advanced" → "Accept the Risk and Continue"
+
+### Database Connection Issues
+If WordPress can't connect to MariaDB:
+1. Ensure MariaDB container is running: `make ps`
+2. Check MariaDB logs: `make logs-mariadb`
+3. Verify environment variables in `srcs/.env`
+
+### Clean Rebuild
+To completely restart from scratch:
+```bash
+make fclean
+make
+```
+
+## Related Documentation
+
 - [Docker Official Documentation](https://docs.docker.com/)
-- [Docker Compose Documentation](https://docs.docker.com/compose/)
-- [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
-
-### Web Server & Security
-- [NGINX Official Documentation](https://nginx.org/en/docs/)
-- [TLS/SSL Configuration Guide](https://wiki.mozilla.org/Security/Server_Side_TLS)
-- [OpenSSL Documentation](https://www.openssl.org/docs/)
-
-### Databases
-- [MariaDB Official Documentation](https://mariadb.com/kb/en/)
-- [MySQL/MariaDB Container Best Practices](https://hub.docker.com/_/mariadb)
-
-### WordPress & PHP
-- [WordPress Official Documentation](https://wordpress.org/support/)
+- [NGINX Documentation](https://nginx.org/en/docs/)
+- [MariaDB Documentation](https://mariadb.com/kb/en/)
+- [WordPress Documentation](https://wordpress.org/support/)
 - [PHP-FPM Documentation](https://www.php.net/manual/en/install.fpm.php)
 
-### Base Images
-- [Alpine Linux Documentation](https://wiki.alpinelinux.org/)
-- [Debian Official Documentation](https://www.debian.org/doc/)
+## Design Choices & Technical Decisions
 
-### AI Usage
+### Docker vs Virtual Machines
 
-AI (GitHub Copilot) was used for the following tasks:
-- **Configuration file templates**: Generation of initial NGINX configuration, MariaDB server configuration, and WordPress configuration templates
-- **Shell scripts**: Writing initialization scripts for database setup and WordPress configuration
-- **Dockerfile optimization**: Suggestions for multi-stage builds and best practices for reducing image size
-- **Docker Compose structure**: Guidance on proper service configuration and networking setup
-- **Documentation**: Assistance in structuring and formatting this README and related documentation files
+**Why Docker instead of VMs?**
 
-All AI-generated content was thoroughly reviewed, tested, and modified to ensure accuracy, security (no credentials exposed), and compliance with project requirements.
+| Aspect | Docker Containers | Virtual Machines |
+|--------|------------------|------------------|
+| **Startup Time** | Seconds | Minutes |
+| **Resource Usage** | Minimal (shares kernel) | Heavy (full OS per VM) |
+| **Isolation** | Process-level | Hardware-level |
+| **Portability** | Highly portable | Less portable |
+| **Development Speed** | Fast iteration | Slower workflow |
 
-## Key Design Choices
+For this project, Docker provides lightweight containers that are perfect for learning infrastructure concepts without the overhead of full virtual machines.
 
-### Container Architecture
-- **Separation of concerns**: Each service runs in its own container for modularity and independent scaling
-- **Alpine/Debian base images**: Chosen for their small footprint and security focus
-- **Custom Dockerfiles**: All images are built from scratch as per requirements
+### Docker Network vs Host Network
 
-### Networking
-- **Docker network**: Dedicated custom bridge network for inter-container communication
-- **No host network**: Containers communicate through the Docker network for isolation
-- **NGINX as single entry point**: Port 443 (HTTPS only) is the only exposed port
+**Decision: Custom Bridge Network (inception-network)**
 
-### Storage & Persistence
-- **Docker named volumes**: Used for WordPress database and website files
-- **Volume location**: `/home/fmixtur/data/` on the host machine
-- **No bind mounts**: All persistent data uses Docker volumes for portability
+- ✅ **Isolation**: Services communicate only with each other and defined ports
+- ✅ **Security**: Host services are protected from container processes
+- ✅ **Flexibility**: Containers can communicate by service name (DNS resolution)
+- ❌ Host Network would expose all container ports directly to the host, creating security risks
 
-### Security
-- **Environment variables**: Sensitive configuration through `.env` file
-- **Docker secrets**: Credentials stored in separate files outside Git
-- **TLS encryption**: All external communication uses TLSv1.2 or TLSv1.3
-- **No hardcoded credentials**: All passwords and sensitive data managed through environment variables
+Each service reaches others using the service name (e.g., `mariadb:3306`, `wordpress:9000`), while NGINX is the only entry point exposed to the outside world on port 443.
 
-### Container Restart Policy
-- **Always restart**: All containers have restart policies to ensure high availability
-- **No infinite loops**: Services run as proper daemons, not tail -f tricks
-- **PID 1 best practices**: Main processes run as PID 1 within containers
+### Docker Volumes vs Bind Mounts
 
-## Technology Stack Comparison
+**Decision: Named Volumes Only (No Bind Mounts)**
+
+| Feature | Named Volumes | Bind Mounts |
+|---------|---------------|------------|
+| **Portability** | High (Docker-managed) | Low (host-dependent) |
+| **Performance** | Optimized | Can be slower |
+| **Permissions** | Simpler | Complex on different hosts |
+| **Backup** | Easier | Manual process |
+| **Recommended** | ✅ YES | ❌ NO (forbidden in this project) |
+
+Volumes are stored in `/home/login/data/` on the host (via bind mount at storage level only, not for application use). Services access data through named volumes:
+- `mariadb_data:/var/lib/mysql` - Database persistence
+- `wordpress_data:/var/www/html` - Website files persistence
+
+### Environment Variables vs Docker Secrets
+
+**Decision: Both Used**
+
+**Environment Variables (.env file)**
+- Used for non-sensitive configuration (domain names, ports)
+- Git-ignored to prevent accidental commits
+- Easy to manage and understand
+
+**Docker Secrets (recommended)**
+- Used for sensitive credentials (passwords, API keys)
+- More secure than environment variables
+- File-based storage outside variable scope
+- Mounted as read-only files in containers
+
+Structure:
+```
+secrets/
+├── db_root_password.txt
+├── db_password.txt
+└── credentials.txt
+```
+
+### Container Architecture Decisions
+
+**One Service Per Container**
+- **Separation of Concerns**: Each container has one responsibility
+- **Scalability**: Services can be scaled independently
+- **Maintainability**: Easier to troubleshoot and update
+- **Standard Practice**: Follows Docker best practices (one process per container)
+
+**No Infinite Loops or Daemonization**
+- Services run as proper foreground processes (PID 1)
+- Avoids hacky patches like `tail -f` or `sleep infinity`
+- Proper signal handling for graceful shutdowns
+- Containers restart via Docker restart policy (not internal loops)
+
+**Restart Policy: Always**
+- Ensures high availability
+- Automatic recovery from crashes
+- Production-ready behavior
+
+## AI Usage and Attribution
+
+This project utilized AI (GitHub Copilot) to improve productivity and reduce repetitive tasks:
+
+**Tasks where AI was used:**
+- **Configuration file generation**: Initial templates for NGINX default.conf, MariaDB server.cnf, and WordPress wp-config.php
+- **Shell script writing**: Database initialization scripts and WordPress setup automation in tools/ directories
+- **Dockerfile optimization**: Multi-layer builds, best practices for reducing image size, package manager efficiency
+- **Docker Compose structure**: Service configuration, proper networking setup, volume management recommendations
+- **Documentation**: Structure and formatting of this README and related documentation files
+
+**How AI was applied:**
+1. Generated initial templates and boilerplate code
+2. All generated content was thoroughly reviewed for accuracy and security
+3. Verified no hardcoded credentials were present
+4. Tested configurations against project requirements
+5. Ensured compliance with 42 curriculum standards
+
+**What was NOT delegated to AI:**
+- Architecture decisions and design thinking
+- Security-critical configurations
+- Business logic and project-specific customizations
+- Deployment and testing procedures
+
+All code and documentation has been reviewed, verified, and is fully understood and maintained by the project author.
 
 ### Virtual Machines vs Docker
 - **Virtual Machines**: Full OS overhead, slower startup, more resource-intensive
